@@ -1,18 +1,39 @@
 [Setting name="Show quick vote window" category="Window"]
 bool showWindow = true;
 
+[Setting name="Hide window title" category="Window"]
+bool hideWindowTitle = false;
+
+[Setting name="Window opacity" category="Window"]
+float windowOpacity = 1.0f;
+
 [Setting name="Window X" category="Window" hidden]
-float windowX = 40.0f;
+int windowX = 40;
 
 [Setting name="Window Y" category="Window" hidden]
-float windowY = 160.0f;
+int windowY = 160;
 
 [Setting name="Window width" category="Window" hidden]
-float windowWidth = 240.0f;
+int windowWidth = 240;
 
 [Setting name="Window height" category="Window" hidden]
-float windowHeight = 86.0f;
+int windowHeight = 86;
 
+//Default setting values for sanitizing. Prevents issues with bad settings causing the window to not load.
+const int defaultWindowX = 40;
+const int defaultWindowY = 160;
+const int defaultWindowWidth = 240;
+const int defaultWindowHeight = 86;
+const int minWindowWidth = 160;
+const int minWindowHeight = 48;
+const int maxWindowWidth = 4096;
+const int maxWindowHeight = 4096;
+const int maxWindowPosition = 10000;
+const float defaultWindowOpacity = 1.0f;
+const float minWindowOpacity = 0.1f;
+const float maxWindowOpacity = 1.0f;
+
+// Button layout consts
 const float minbuttonSize = 28.0f;
 const float buttonSpacing = 4.0f;
 const int buttonCount = 4.0f; // Float for calcs later is easier
@@ -39,10 +60,12 @@ void Render()
         return;
     }
 
+    SanitizePluginSettings();
     UI::SetNextWindowSize(windowWidth, windowHeight, UI::Cond::Appearing);
     UI::SetNextWindowPos(windowX, windowY, UI::Cond::Appearing);
+    UI::SetNextWindowBgAlpha(windowOpacity);
 
-    if (UI::Begin("Quick Vote Commands", showWindow)) {
+    if (UI::Begin("Quick Vote Commands", showWindow, GetWindowFlags())) {
         SaveWindowBounds();
 
         float buttonSize = GetButtonSize();
@@ -73,15 +96,48 @@ void Render()
     UI::End();
 }
 
+void SanitizePluginSettings()
+{
+    if (windowWidth < minWindowWidth || windowWidth > maxWindowWidth) {
+        windowWidth = defaultWindowWidth;
+    }
+    if (windowHeight < minWindowHeight || windowHeight > maxWindowHeight) {
+        windowHeight = defaultWindowHeight;
+    }
+    if (windowX < -maxWindowPosition || windowX > maxWindowPosition) {
+        windowX = defaultWindowX;
+    }
+    if (windowY < -maxWindowPosition || windowY > maxWindowPosition) {
+        windowY = defaultWindowY;
+    }
+    if (Math::IsNaN(windowOpacity) || windowOpacity < minWindowOpacity || windowOpacity > maxWindowOpacity) {
+        windowOpacity = defaultWindowOpacity;
+    }
+}
+
+int GetWindowFlags()
+{
+    int flags = UI::GetDefaultWindowFlags();
+    if (hideWindowTitle) {
+        flags = flags | UI::WindowFlags::NoTitleBar;
+    }
+    return flags;
+}
+
 void SaveWindowBounds()
 {
     vec2 windowPos = UI::GetWindowPos();
     vec2 windowSize = UI::GetWindowSize();
 
-    windowX = windowPos.x;
-    windowY = windowPos.y;
-    windowWidth = windowSize.x;
-    windowHeight = windowSize.y;
+    if (windowSize.x < minWindowWidth || windowSize.y < minWindowHeight) {
+        return;
+    }
+
+    windowX = int(windowPos.x);
+    windowY = int(windowPos.y);
+    windowWidth = int(windowSize.x);
+    windowHeight = int(windowSize.y);
+    SanitizePluginSettings();
 }
 
 void AddTooltip(const string &in text)
